@@ -1,6 +1,8 @@
 from enum import Enum
 
+
 class Status(Enum):
-  AGUARDANDO_TIER = "aguardando_tier"
-  AGUARDANDO_FOTO = "aguardando_foto"
-  CAPTURANDO = "capturando"
+  """Estados do sistema durante o fluxo de captura."""
+
+  IDLE = "idle"             # Aguardando o usuário apertar um botão de tier
+  CAPTURING = "capturing"   # Foto sendo tirada e salva

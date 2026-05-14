@@ -6,50 +6,48 @@ from datetime import datetime
 import RPi.GPIO as GPIO
 
 from src.shared.status import Status
+from src.shared.constants import (
+  TIER_MAP,
+  TIER_DISPLAY,
+  POLL_INTERVAL,
+  MESSAGE_DISPLAY,
+)
 from src.device_config.buttons_config import (
-  BUTTON_BOM,
-  BUTTON_RUIM,
-  BUTTON_PESSIMO,
   init_gpio,
   button_pressed,
-  wait_to_release_button
+  wait_to_release_button,
 )
-from src.device_config.lcd_config import init_lcd, lcd_msg
+from src.device_config.lcd_config import (
+  init_lcd,
+  lcd_msg,
+  show_idle_screen,
+  show_no_pendrive_screen,
+)
 from src.device_config.camera_config import find_camera, capture_photo
-from src.device_config.pendrive_config import get_output_directory
-from src.stages.metadata.load_metadata import build_metadata, save_local_metadata
+from src.device_config.pendrive_config import (
+  get_output_directory,
+  get_tier_directory,
+)
+from src.stages.metadata.load_metadata import (
+  build_metadata,
+  save_local_metadata,
+)
 
-# Mapeamento botão → tier
-TIER_MAP = {
-  BUTTON_BOM: "bom",
-  BUTTON_RUIM: "ruim",
-  BUTTON_PESSIMO: "pessimo",
-}
-
-TIER_DISPLAY = {
-  "bom": "BOM",
-  "ruim": "RUIM",
-  "pessimo": "PESSIMO",
-}
-
-# Timing (segundos)
-POLL_INTERVAL = 0.05
-MESSAGE_DISPLAY = 2.0
-
+logging.basicConfig(
+  level=logging.INFO,
+  format="%(asctime)s [%(levelname)s] %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 
 def main() -> None:
   logger.info("Inicializando sistema...")
-
   init_gpio()
-
   lcd = init_lcd()
-
   lcd_msg(lcd, "Inicializando", "Aguarde...")
 
+  # ── Detecta câmera ──
   camera = find_camera()
-
   if camera is None:
     logger.error("Webcam C920s não detectada.")
     lcd_msg(lcd, "Camera nao", "encontrada!")
@@ -57,145 +55,78 @@ def main() -> None:
   else:
     logger.info("Câmera detectada em: %s", camera)
 
-  out_dir, eh_pendrive = get_output_directory()
-
+  # ── Detecta pen drive (ou fallback) ──
+  base_dir, is_pendrive = get_output_directory()
   logger.info(
-    "Salvando em: %s (pendrive=%s)",
-    out_dir,
-    eh_pendrive,
+    "Diretorio base: %s (pendrive=%s)",
+    base_dir,
+    is_pendrive,
   )
 
-  status = Status.AGUARDANDO_TIER
-  tier_selecionado: str | None = None
-
-  def tela_inicial() -> None:
-    if eh_pendrive:
-      lcd_msg(lcd, "Selecione tier:", "1=B 2=R 3=P")
-    else:
-      lcd_msg(lcd, "SEM PENDRIVE!", "1=B 2=R 3=P")
-
-  tela_inicial()
+  status = Status.IDLE
+  show_idle_screen(lcd, is_pendrive)
 
   try:
     while True:
-
-      # 1º Condição:
-      if status == Status.AGUARDANDO_TIER:
-        for pino, tier in TIER_MAP.items():
-          if button_pressed(pino):
-            tier_selecionado = tier
-
+      if status == Status.IDLE:
+        # Aguardando seleção de tier — qualquer botão dispara a captura
+        for pin, tier in TIER_MAP.items():
+          if button_pressed(pin):
             logger.info("Tier selecionado: %s", tier)
-
-            lcd_msg(
-              lcd,
-              f"Tier: {TIER_DISPLAY[tier]}",
-              "Aperte FOTO",
-            )
-
-            wait_to_release_button(pino)
-
-            status = Status.AGUARDANDO_FOTO
-
+            wait_to_release_button(pin)
+            status = Status.CAPTURING
+            selected_tier = tier
             break
 
-      # 2º Condição:
-      elif status == Status.AGUARDANDO_FOTO:
-
-        # Permite trocar o tier antes de tirar a foto
-        trocou = False
-
-        for pino, tier in TIER_MAP.items():
-          if button_pressed(pino):
-            tier_selecionado = tier
-
-            logger.info("Tier alterado para: %s", tier)
-
-            lcd_msg(
-              lcd,
-              f"Tier: {TIER_DISPLAY[tier]}",
-              "Aperte FOTO",
-            )
-
-            wait_to_release_button(pino)
-
-            trocou = True
-
-            break
-
-        if not trocou and button_pressed(23):
-          wait_to_release_button(23)
-
-          status = Status.CAPTURANDO
-
-      elif status == Status.CAPTURANDO:
-        lcd_msg(lcd, "Capturando...", "Aguarde")
+      elif status == Status.CAPTURING:
+        lcd_msg(lcd, "Capturando...", f"Tier: {TIER_DISPLAY[selected_tier]}")
 
         if camera is None:
           lcd_msg(lcd, "Sem camera!", "Reconecte USB")
-
           time.sleep(MESSAGE_DISPLAY)
-
-          status = Status.AGUARDANDO_TIER
-          tier_selecionado = None
-
-          tela_inicial()
-
+          status = Status.IDLE
+          show_idle_screen(lcd, is_pendrive)
           continue
 
+        # Diretório específico do tier (cria se não existir)
+        tier_dir = get_tier_directory(base_dir, selected_tier)
+
+        # Nome do arquivo: {tier}_{timestamp}_{id}.png
         photo_id = uuid.uuid4().hex[:12]
-
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        filename = f"{tier_selecionado}_{timestamp}_{photo_id}.png"
-
-        filepath = out_dir / filename
+        filename = f"{selected_tier}_{timestamp}_{photo_id}.png"
+        filepath = tier_dir / filename
 
         if capture_photo(camera, filepath):
           logger.info("Foto salva: %s", filepath)
-
           metadata = build_metadata(
             photo_id=photo_id,
             filename=filename,
             filepath=filepath,
-            tier=tier_selecionado,
+            tier=selected_tier,
           )
-
-          save_local_metadata(metadata, out_dir)
-
-          # As linhas abaixo só serão habilitadas no futuro:
-          # enviar_para_api(metadata)
-          # upload_para_gcp(filepath, metadata)
-
-          lcd_msg(lcd, "Foto OK!", filename[:16])
-
+          save_local_metadata(metadata, base_dir)
+          # As linhas abaixo serão habilitadas no futuro:
+          # send_to_api(metadata)
+          # upload_to_gcp(filepath, metadata)
+          lcd_msg(lcd, "Foto OK!", f"Tier: {TIER_DISPLAY[selected_tier]}")
         else:
           logger.error("Falha ao capturar foto.")
-
-          lcd_msg(
-            lcd,
-            "Erro captura!",
-            "Tente de novo",
-          )
+          lcd_msg(lcd, "Erro captura!", "Tente de novo")
 
         time.sleep(MESSAGE_DISPLAY)
-
-        status = Status.AGUARDANDO_TIER
-        tier_selecionado = None
-
-        tela_inicial()
+        status = Status.IDLE
+        show_idle_screen(lcd, is_pendrive)
 
       time.sleep(POLL_INTERVAL)
 
   except KeyboardInterrupt:
     logger.info("Encerrando por Ctrl+C...")
-
   finally:
     try:
       lcd.clear()
     except Exception:
       pass
-
     GPIO.cleanup()
 
 
