@@ -14,7 +14,7 @@ CAMERA_HEIGHT = 1080
 
 # Foco manual (0=desligado usa autofoco, 1-250 define foco fixo)
 # Ajuste conforme a distância do tubo à câmera (~140mm → ~30)
-CAMERA_FOCUS = 30
+CAMERA_FOCUS = 50
 
 
 def find_camera():
