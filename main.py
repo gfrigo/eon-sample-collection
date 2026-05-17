@@ -43,9 +43,14 @@ logger = logging.getLogger(__name__)
 
 
 def _apply_camera_focus(device) -> None:
+  import os
   dev_path = f"/dev/video{device}"
+  uid = subprocess.check_output(["id", "-u"]).decode().strip()
+  env = os.environ.copy()
+  env["XDG_RUNTIME_DIR"] = f"/run/user/{uid}"
+  env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path=/run/user/{uid}/bus"
   try:
-    subprocess.run(["systemctl", "--user", "stop", "wireplumber"], timeout=5)
+    subprocess.run(["systemctl", "--user", "stop", "wireplumber"], timeout=5, env=env)
     time.sleep(1)
     result = subprocess.run(
       ["v4l2-ctl", "-d", dev_path,
@@ -60,7 +65,7 @@ def _apply_camera_focus(device) -> None:
   except Exception as exc:
     logger.warning("Erro ao aplicar foco: %s", exc)
   finally:
-    subprocess.run(["systemctl", "--user", "start", "wireplumber"], timeout=5)
+    subprocess.run(["systemctl", "--user", "start", "wireplumber"], timeout=5, env=env)
     time.sleep(1)
 
 
