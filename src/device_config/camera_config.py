@@ -12,6 +12,10 @@ CAMERA_WARMUP_FRAMES = 5
 CAMERA_WIDTH = 1920
 CAMERA_HEIGHT = 1080
 
+# Foco manual (0=desligado usa autofoco, 1-250 define foco fixo)
+# Ajuste conforme a distância do tubo à câmera (~140mm → ~30)
+CAMERA_FOCUS = 30
+
 
 def find_camera():
   """
@@ -65,6 +69,10 @@ def capture_photo(device, output_path: Path) -> bool:
   # Força resolução Full HD nativa da C920s
   cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
   cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+
+  # Desliga autofoco e define foco manual
+  cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+  cap.set(cv2.CAP_PROP_FOCUS, CAMERA_FOCUS)
 
   # Descarta primeiros frames (ajuste de exposição/foco)
   for _ in range(CAMERA_WARMUP_FRAMES):
