@@ -14,7 +14,7 @@ CAMERA_HEIGHT = 1080
 
 # Foco manual (0=desligado usa autofoco, 1-250 define foco fixo)
 # Ajuste conforme a distância do tubo à câmera (~140mm → ~30)
-CAMERA_FOCUS = 30
+CAMERA_FOCUS = 200
 
 
 def find_camera():
@@ -57,17 +57,22 @@ def find_camera():
 
 
 def _set_focus(device: int) -> None:
+  import logging
   dev_path = f"/dev/video{device}"
   try:
-    subprocess.run(
+    result = subprocess.run(
       ["v4l2-ctl", "-d", dev_path,
        "-c", "focus_automatic_continuous=0",
        "-c", f"focus_absolute={CAMERA_FOCUS}"],
       capture_output=True,
       timeout=3,
     )
-  except Exception:
-    pass
+    if result.returncode != 0:
+      logging.warning("v4l2-ctl focus falhou: %s", result.stderr.decode())
+    else:
+      logging.info("Foco aplicado: %d", CAMERA_FOCUS)
+  except Exception as e:
+    logging.warning("v4l2-ctl focus erro: %s", e)
 
 
 def capture_photo(device, output_path: Path) -> bool:
