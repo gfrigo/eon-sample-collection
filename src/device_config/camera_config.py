@@ -35,7 +35,11 @@ def find_camera():
       if "C920" in line or "Logitech" in line:
         found_logitech = True
       elif found_logitech and "/dev/video" in line:
-        return line.strip()
+        path = line.strip()
+        try:
+          return int(path.replace("/dev/video", ""))
+        except ValueError:
+          return path
   except (FileNotFoundError, subprocess.TimeoutExpired):
     pass
 
