@@ -54,7 +54,7 @@ def capture_photo(device, output_path: Path) -> bool:
 
   Retorna True em caso de sucesso, False em caso de falha.
   """
-  cap = cv2.VideoCapture(device)
+  cap = cv2.VideoCapture(device, cv2.CAP_V4L2)
   if not cap.isOpened():
     return False
 
