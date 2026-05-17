@@ -206,6 +206,9 @@ tempCodeRunnerFile.py
 # Ruff stuff:
 .ruff_cache/
 
+# GCP credentials
+service_account.json
+
 # PyPI configuration file
 .pypirc
 

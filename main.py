@@ -32,6 +32,7 @@ from src.stages.metadata.load_metadata import (
   build_metadata,
   save_local_metadata,
 )
+from src.stages.gcp.load_to_storage import upload_to_gcp
 
 logging.basicConfig(
   level=logging.INFO,
@@ -104,10 +105,8 @@ def main() -> None:
             filepath=filepath,
             tier=selected_tier,
           )
+          upload_to_gcp(filepath, metadata)
           save_local_metadata(metadata, base_dir)
-          # As linhas abaixo serão habilitadas no futuro:
-          # send_to_api(metadata)
-          # upload_to_gcp(filepath, metadata)
           show_photo_ok(lcd, TIER_DISPLAY[selected_tier])
         else:
           logger.error("Falha ao capturar foto.")
