@@ -2,6 +2,7 @@ import logging
 import time
 import uuid
 from datetime import datetime
+from pathlib import Path
 
 import RPi.GPIO as GPIO
 
@@ -9,6 +10,7 @@ from src.shared.status import Status
 from src.shared.constants import (
   TIER_MAP,
   TIER_DISPLAY,
+  TIER_FOLDER,
   POLL_INTERVAL,
   MESSAGE_DISPLAY,
 )
@@ -21,13 +23,11 @@ from src.device_config.lcd_config import (
   init_lcd,
   lcd_msg,
   show_idle_screen,
-  show_no_pendrive_screen,
+  show_tier_selected,
+  show_capturing_animation,
+  show_photo_ok,
 )
 from src.device_config.camera_config import find_camera, capture_photo
-from src.device_config.pendrive_config import (
-  get_output_directory,
-  get_tier_directory,
-)
 from src.stages.metadata.load_metadata import (
   build_metadata,
   save_local_metadata,
@@ -55,16 +55,12 @@ def main() -> None:
   else:
     logger.info("Câmera detectada em: %s", camera)
 
-  # ── Detecta pen drive (ou fallback) ──
-  base_dir, is_pendrive = get_output_directory()
-  logger.info(
-    "Diretorio base: %s (pendrive=%s)",
-    base_dir,
-    is_pendrive,
-  )
+  base_dir = Path(__file__).resolve().parent / "fotos_local"
+  base_dir.mkdir(exist_ok=True)
+  logger.info("Diretorio base: %s", base_dir)
 
   status = Status.IDLE
-  show_idle_screen(lcd, is_pendrive)
+  show_idle_screen(lcd)
 
   try:
     while True:
@@ -79,17 +75,20 @@ def main() -> None:
             break
 
       elif status == Status.CAPTURING:
-        lcd_msg(lcd, "Capturando...", f"Tier: {TIER_DISPLAY[selected_tier]}")
+        show_tier_selected(lcd, TIER_DISPLAY[selected_tier])
 
         if camera is None:
           lcd_msg(lcd, "Sem camera!", "Reconecte USB")
           time.sleep(MESSAGE_DISPLAY)
           status = Status.IDLE
-          show_idle_screen(lcd, is_pendrive)
+          show_idle_screen(lcd)
           continue
 
+        show_capturing_animation(lcd, TIER_DISPLAY[selected_tier])
+
         # Diretório específico do tier (cria se não existir)
-        tier_dir = get_tier_directory(base_dir, selected_tier)
+        tier_dir = base_dir / TIER_FOLDER[selected_tier]
+        tier_dir.mkdir(exist_ok=True)
 
         # Nome do arquivo: {tier}_{timestamp}_{id}.png
         photo_id = uuid.uuid4().hex[:12]
@@ -109,14 +108,14 @@ def main() -> None:
           # As linhas abaixo serão habilitadas no futuro:
           # send_to_api(metadata)
           # upload_to_gcp(filepath, metadata)
-          lcd_msg(lcd, "Foto OK!", f"Tier: {TIER_DISPLAY[selected_tier]}")
+          show_photo_ok(lcd, TIER_DISPLAY[selected_tier])
         else:
           logger.error("Falha ao capturar foto.")
           lcd_msg(lcd, "Erro captura!", "Tente de novo")
 
         time.sleep(MESSAGE_DISPLAY)
         status = Status.IDLE
-        show_idle_screen(lcd, is_pendrive)
+        show_idle_screen(lcd)
 
       time.sleep(POLL_INTERVAL)
 

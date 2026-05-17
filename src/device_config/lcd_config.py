@@ -1,5 +1,7 @@
 """Configuração e helpers do LCD 16x2 I2C (PCF8574)."""
 
+import time
+
 from RPLCD.i2c import CharLCD
 
 # ── Configuração do LCD ──
@@ -22,19 +24,34 @@ def lcd_msg(lcd: CharLCD, line1: str, line2: str = "") -> None:
     lcd.write_string(line2[:LCD_COLS])
 
 
-def show_idle_screen(lcd: CharLCD, is_pendrive: bool) -> None:
-  """
-  Tela de instrução para o operador quando o sistema está pronto.
-
-  Mostra qual botão corresponde a qual tier. Se não houver pen drive,
-  alerta o operador (as fotos cairão na pasta local de fallback).
-  """
-  if is_pendrive:
-    lcd_msg(lcd, "Selecione tier:", "1=B 2=R 3=Pes")
-  else:
-    lcd_msg(lcd, "SEM PENDRIVE!", "1=B 2=R 3=Pes")
+def show_idle_screen(lcd: CharLCD) -> None:
+  """Tela de instrução para o operador quando o sistema está pronto."""
+  lcd_msg(lcd, "Selecione tier:", "1=B 2=R 3=Pes")
 
 
-def show_no_pendrive_screen(lcd: CharLCD) -> None:
-  """Aviso de que o pen drive não foi detectado."""
-  lcd_msg(lcd, "SEM PENDRIVE!", "Insira USB")
+def show_tier_selected(lcd: CharLCD, tier_display: str) -> None:
+  """Confirmação visual breve ao pressionar o botão de tier."""
+  lcd.clear()
+  lcd.write_string(f"> Tier: {tier_display}"[:LCD_COLS])
+  lcd.cursor_pos = (1, 0)
+  lcd.write_string("Confirmado!")
+  time.sleep(0.5)
+
+
+def show_capturing_animation(lcd: CharLCD, tier_display: str) -> None:
+  """Anima três frames de pontos enquanto a câmera captura."""
+  for dots in (".", "..", "..."):
+    lcd.clear()
+    lcd.write_string(f"Capturando{dots}"[:LCD_COLS])
+    lcd.cursor_pos = (1, 0)
+    lcd.write_string(f"Tier: {tier_display}"[:LCD_COLS])
+    time.sleep(0.3)
+
+
+def show_photo_ok(lcd: CharLCD, tier_display: str) -> None:
+  """Flash + confirmação de foto salva com sucesso."""
+  lcd.clear()
+  time.sleep(0.08)
+  lcd.write_string("** Foto OK! **")
+  lcd.cursor_pos = (1, 0)
+  lcd.write_string(f"Tier: {tier_display}"[:LCD_COLS])
