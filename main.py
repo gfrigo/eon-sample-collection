@@ -1,4 +1,5 @@
 import logging
+import subprocess
 import time
 import uuid
 from datetime import datetime
@@ -27,7 +28,7 @@ from src.device_config.lcd_config import (
   show_capturing_animation,
   show_photo_ok,
 )
-from src.device_config.camera_config import find_camera, capture_photo
+from src.device_config.camera_config import find_camera, capture_photo, CAMERA_FOCUS
 from src.stages.metadata.load_metadata import (
   build_metadata,
   save_local_metadata,
@@ -39,6 +40,28 @@ logging.basicConfig(
   format="%(asctime)s [%(levelname)s] %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+def _apply_camera_focus(device) -> None:
+  dev_path = f"/dev/video{device}"
+  try:
+    subprocess.run(["systemctl", "--user", "stop", "wireplumber"], timeout=5)
+    time.sleep(1)
+    result = subprocess.run(
+      ["v4l2-ctl", "-d", dev_path,
+       "-c", "focus_automatic_continuous=0",
+       "-c", f"focus_absolute={CAMERA_FOCUS}"],
+      capture_output=True, timeout=5,
+    )
+    if result.returncode == 0:
+      logger.info("Foco manual aplicado: %d", CAMERA_FOCUS)
+    else:
+      logger.warning("Foco falhou: %s", result.stderr.decode().strip())
+  except Exception as exc:
+    logger.warning("Erro ao aplicar foco: %s", exc)
+  finally:
+    subprocess.run(["systemctl", "--user", "start", "wireplumber"], timeout=5)
+    time.sleep(1)
 
 
 def main() -> None:
@@ -55,6 +78,7 @@ def main() -> None:
     time.sleep(3)
   else:
     logger.info("Câmera detectada em: %s", camera)
+    _apply_camera_focus(camera)
 
   base_dir = Path(__file__).resolve().parent / "fotos_local"
   base_dir.mkdir(exist_ok=True)
