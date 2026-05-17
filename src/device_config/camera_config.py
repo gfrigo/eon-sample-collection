@@ -56,12 +56,28 @@ def find_camera():
   return None
 
 
+def _set_focus(device: int) -> None:
+  dev_path = f"/dev/video{device}"
+  try:
+    subprocess.run(
+      ["v4l2-ctl", "-d", dev_path,
+       "-c", "focus_automatic_continuous=0",
+       "-c", f"focus_absolute={CAMERA_FOCUS}"],
+      capture_output=True,
+      timeout=3,
+    )
+  except Exception:
+    pass
+
+
 def capture_photo(device, output_path: Path) -> bool:
   """
   Captura uma foto da câmera e salva no caminho informado.
 
   Retorna True em caso de sucesso, False em caso de falha.
   """
+  _set_focus(device)
+
   cap = cv2.VideoCapture(device, cv2.CAP_V4L2)
   if not cap.isOpened():
     return False
@@ -69,10 +85,6 @@ def capture_photo(device, output_path: Path) -> bool:
   # Força resolução Full HD nativa da C920s
   cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
   cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
-
-  # Desliga autofoco e define foco manual
-  cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
-  cap.set(cv2.CAP_PROP_FOCUS, CAMERA_FOCUS)
 
   # Descarta primeiros frames (ajuste de exposição/foco)
   for _ in range(CAMERA_WARMUP_FRAMES):
