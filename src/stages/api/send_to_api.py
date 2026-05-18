@@ -5,7 +5,7 @@ import json
 
 logger = logging.getLogger(__name__)
 
-API_URL = "http://localhost:8000"
+API_URL = "http://172.20.10.3:8000"
 
 GCS_PUBLIC_BASE = "https://storage.googleapis.com"
 
