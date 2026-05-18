@@ -34,6 +34,7 @@ from src.stages.metadata.load_metadata import (
   save_local_metadata,
 )
 from src.stages.gcp.load_to_storage import upload_to_gcp
+from src.stages.api.send_to_api import send_to_api
 
 logging.basicConfig(
   level=logging.INFO,
@@ -139,6 +140,7 @@ def main() -> None:
             tier=selected_tier,
           )
           upload_to_gcp(filepath, metadata)
+          send_to_api(metadata)
           save_local_metadata(metadata, base_dir)
           show_photo_ok(lcd, TIER_DISPLAY[selected_tier])
         else:
