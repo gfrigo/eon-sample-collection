@@ -12,9 +12,10 @@ CAMERA_WARMUP_FRAMES = 30
 CAMERA_WIDTH = 1920
 CAMERA_HEIGHT = 1080
 
-# Foco manual (0=desligado usa autofoco, 1-250 define foco fixo)
-# Ajuste conforme a distância do tubo à câmera (~140mm → ~30)
-CAMERA_FOCUS = 200
+# Foco manual — 0=infinito, 250=macro. Para ~140mm use ~200
+CAMERA_FOCUS     = 200
+CAMERA_SHARPNESS = 200   # 0-255, padrão 128
+CAMERA_BACKLIGHT = 1     # 0=off, 1=on (compensa LEDs brilhantes)
 
 
 def find_camera():
@@ -72,8 +73,12 @@ def capture_photo(device, output_path: Path) -> bool:
   cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
   cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
 
-  # Aguarda autofoco estabilizar no tubo
-  time.sleep(2)
+  # Configurações de imagem
+  cap.set(cv2.CAP_PROP_FOCUS,      CAMERA_FOCUS)
+  cap.set(cv2.CAP_PROP_SHARPNESS,  CAMERA_SHARPNESS)
+  cap.set(cv2.CAP_PROP_BACKLIGHT,  CAMERA_BACKLIGHT)
+
+  time.sleep(1)
 
   # Descarta primeiros frames (ajuste de exposição/foco)
   for _ in range(CAMERA_WARMUP_FRAMES):
