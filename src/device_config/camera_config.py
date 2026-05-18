@@ -6,7 +6,7 @@ from pathlib import Path
 import cv2
 
 # Frames descartados após abrir a câmera (aquecimento do sensor)
-CAMERA_WARMUP_FRAMES = 5
+CAMERA_WARMUP_FRAMES = 30
 
 # Resolução nativa Full HD da C920s
 CAMERA_WIDTH = 1920
@@ -62,7 +62,6 @@ def capture_photo(device, output_path: Path) -> bool:
 
   Retorna True em caso de sucesso, False em caso de falha.
   """
-  import logging
   import time
 
   cap = cv2.VideoCapture(device, cv2.CAP_V4L2)
@@ -73,11 +72,8 @@ def capture_photo(device, output_path: Path) -> bool:
   cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
   cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
 
-  # Desliga autofoco e aplica foco manual com a câmera já aberta
-  ok_af = cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)
-  ok_f  = cap.set(cv2.CAP_PROP_FOCUS, CAMERA_FOCUS)
-  logging.info("Foco: autofocus=%s focus=%s valor=%d", ok_af, ok_f, CAMERA_FOCUS)
-  time.sleep(0.5)
+  # Aguarda autofoco estabilizar no tubo
+  time.sleep(2)
 
   # Descarta primeiros frames (ajuste de exposição/foco)
   for _ in range(CAMERA_WARMUP_FRAMES):
