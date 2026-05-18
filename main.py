@@ -51,6 +51,7 @@ def _apply_camera_focus(device) -> None:
   env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path=/run/user/{uid}/bus"
   try:
     subprocess.run(["systemctl", "--user", "stop", "wireplumber"], timeout=5, env=env)
+    subprocess.run(["systemctl", "--user", "stop", "pipewire.socket"], timeout=5, env=env)
     subprocess.run(["systemctl", "--user", "stop", "pipewire"], timeout=5, env=env)
     time.sleep(2)
     result = subprocess.run(
@@ -66,6 +67,7 @@ def _apply_camera_focus(device) -> None:
   except Exception as exc:
     logger.warning("Erro ao aplicar foco: %s", exc)
   finally:
+    subprocess.run(["systemctl", "--user", "start", "pipewire.socket"], timeout=5, env=env)
     subprocess.run(["systemctl", "--user", "start", "pipewire"], timeout=5, env=env)
     subprocess.run(["systemctl", "--user", "start", "wireplumber"], timeout=5, env=env)
     time.sleep(1)
