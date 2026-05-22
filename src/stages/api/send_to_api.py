@@ -5,7 +5,7 @@ import json
 
 logger = logging.getLogger(__name__)
 
-API_URL = "http://172.20.10.3:8000"
+API_URL = "https://eon-aab-api-66396884579.southamerica-east1.run.app"
 
 GCS_PUBLIC_BASE = "https://storage.googleapis.com"
 
