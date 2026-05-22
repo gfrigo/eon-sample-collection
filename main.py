@@ -80,6 +80,33 @@ def _apply_camera_focus(device) -> None:
     time.sleep(1)
 
 
+LONG_PRESS_SECONDS = 3.0
+
+
+def _select_doctor(lcd) -> str:
+  """Loop de seleção de médico no LCD. Retorna o nome confirmado."""
+  doctor_index = 0
+  selected = None
+  show_doctor_selection(lcd, DOCTORS, doctor_index)
+  while selected is None:
+    if button_pressed(BUTTON_BOM):
+      doctor_index = (doctor_index - 1) % len(DOCTORS)
+      wait_to_release_button(BUTTON_BOM)
+      show_doctor_selection(lcd, DOCTORS, doctor_index)
+    elif button_pressed(BUTTON_PESSIMO):
+      doctor_index = (doctor_index + 1) % len(DOCTORS)
+      wait_to_release_button(BUTTON_PESSIMO)
+      show_doctor_selection(lcd, DOCTORS, doctor_index)
+    elif button_pressed(BUTTON_RUIM):
+      selected = DOCTORS[doctor_index]
+      wait_to_release_button(BUTTON_RUIM)
+      show_doctor_confirmed(lcd, selected)
+      logger.info("Medico selecionado: %s", selected)
+      time.sleep(1.5)
+    time.sleep(POLL_INTERVAL)
+  return selected
+
+
 def main() -> None:
   logger.info("Inicializando sistema...")
   init_gpio()
@@ -101,40 +128,43 @@ def main() -> None:
   logger.info("Diretorio base: %s", base_dir)
 
   # ── Seleção do médico ──
-  doctor_index = 0
-  selected_doctor = None
-  show_doctor_selection(lcd, DOCTORS, doctor_index)
-  while selected_doctor is None:
-    if button_pressed(BUTTON_BOM):           # Anterior
-      doctor_index = (doctor_index - 1) % len(DOCTORS)
-      wait_to_release_button(BUTTON_BOM)
-      show_doctor_selection(lcd, DOCTORS, doctor_index)
-    elif button_pressed(BUTTON_PESSIMO):     # Próximo
-      doctor_index = (doctor_index + 1) % len(DOCTORS)
-      wait_to_release_button(BUTTON_PESSIMO)
-      show_doctor_selection(lcd, DOCTORS, doctor_index)
-    elif button_pressed(BUTTON_RUIM):        # Confirmar
-      selected_doctor = DOCTORS[doctor_index]
-      wait_to_release_button(BUTTON_RUIM)
-      show_doctor_confirmed(lcd, selected_doctor)
-      logger.info("Medico selecionado: %s", selected_doctor)
-      time.sleep(1.5)
-    time.sleep(POLL_INTERVAL)
-
+  selected_doctor = _select_doctor(lcd)
   status = Status.IDLE
   show_idle_screen(lcd)
 
   try:
     while True:
       if status == Status.IDLE:
-        # Aguardando seleção de tier — qualquer botão dispara a captura
-        for pin, tier in TIER_MAP.items():
-          if button_pressed(pin):
-            logger.info("Tier selecionado: %s", tier)
-            wait_to_release_button(pin)
+        # Long press em BTN1 → troca de médico
+        if button_pressed(BUTTON_BOM):
+          press_start = time.time()
+          long_pressed = False
+          while button_pressed(BUTTON_BOM):
+            elapsed = time.time() - press_start
+            if elapsed >= 1.0:
+              lcd_msg(lcd, "Segure...", f"Trocando em {max(0, int(LONG_PRESS_SECONDS - elapsed))}s")
+            if elapsed >= LONG_PRESS_SECONDS:
+              long_pressed = True
+              wait_to_release_button(BUTTON_BOM)
+              break
+            time.sleep(0.05)
+          if long_pressed:
+            selected_doctor = _select_doctor(lcd)
+            logger.info("Medico trocado: %s", selected_doctor)
+            show_idle_screen(lcd)
+          else:
+            logger.info("Tier selecionado: bom")
             status = Status.CAPTURING
-            selected_tier = tier
-            break
+            selected_tier = "bom"
+        else:
+          # Botões de tier (ruim e pessimo)
+          for pin, tier in {BUTTON_RUIM: "ruim", BUTTON_PESSIMO: "pessimo"}.items():
+            if button_pressed(pin):
+              logger.info("Tier selecionado: %s", tier)
+              wait_to_release_button(pin)
+              status = Status.CAPTURING
+              selected_tier = tier
+              break
 
       elif status == Status.CAPTURING:
         show_tier_selected(lcd, TIER_DISPLAY[selected_tier])
