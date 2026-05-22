@@ -31,12 +31,7 @@ TIER_FOLDER = {
 }
 
 # Lista de médicos disponíveis para seleção no início da sessão
-DOCTORS = [
-  "Dr. Silva",
-  "Dra. Costa",
-  "Dr. Souza",
-  "Dra. Lima",
-]
+DOCTORS = [f"Medico {i:02d}" for i in range(1, 13)]  # Medico 01 a Medico 12
 
 # Timings (em segundos)
 POLL_INTERVAL = 0.05      # Intervalo de leitura dos botões no loop principal
