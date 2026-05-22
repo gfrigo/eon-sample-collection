@@ -30,6 +30,14 @@ TIER_FOLDER = {
   "pessimo": "amostras_pessimas",
 }
 
+# Lista de médicos disponíveis para seleção no início da sessão
+DOCTORS = [
+  "Dr. Silva",
+  "Dra. Costa",
+  "Dr. Souza",
+  "Dra. Lima",
+]
+
 # Timings (em segundos)
 POLL_INTERVAL = 0.05      # Intervalo de leitura dos botões no loop principal
 MESSAGE_DISPLAY = 2.0     # Tempo que mensagens de status ficam visíveis no LCD

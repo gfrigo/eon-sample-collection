@@ -25,6 +25,7 @@ def send_to_api(metadata: dict) -> bool:
         "tier":        metadata["tier"],
         "gcp_url":     gcp_url,
         "collected_at": metadata["timestamp_utc"],
+        "doctor_name": metadata.get("doctor"),
     }
 
     body = json.dumps(payload).encode("utf-8")

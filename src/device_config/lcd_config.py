@@ -48,6 +48,21 @@ def show_capturing_animation(lcd: CharLCD, tier_display: str) -> None:
     time.sleep(0.3)
 
 
+def show_doctor_selection(lcd: CharLCD, doctors: list, index: int) -> None:
+  """Exibe tela de seleção de médico com navegação pelos botões."""
+  name = doctors[index][:12]
+  total = len(doctors)
+  lcd.clear()
+  lcd.write_string(f"< {name:<12} >"[:LCD_COLS])
+  lcd.cursor_pos = (1, 0)
+  lcd.write_string(f"Ant OK Prox {index+1}/{total}"[:LCD_COLS])
+
+
+def show_doctor_confirmed(lcd: CharLCD, doctor: str) -> None:
+  """Confirmação após selecionar o médico."""
+  lcd_msg(lcd, f"Ola,", doctor[:LCD_COLS])
+
+
 def show_photo_ok(lcd: CharLCD, tier_display: str) -> None:
   """Flash + confirmação de foto salva com sucesso."""
   lcd.clear()

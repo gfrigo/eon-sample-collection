@@ -14,11 +14,15 @@ from src.shared.constants import (
   TIER_FOLDER,
   POLL_INTERVAL,
   MESSAGE_DISPLAY,
+  DOCTORS,
 )
 from src.device_config.buttons_config import (
   init_gpio,
   button_pressed,
   wait_to_release_button,
+  BUTTON_BOM,
+  BUTTON_RUIM,
+  BUTTON_PESSIMO,
 )
 from src.device_config.lcd_config import (
   init_lcd,
@@ -27,6 +31,8 @@ from src.device_config.lcd_config import (
   show_tier_selected,
   show_capturing_animation,
   show_photo_ok,
+  show_doctor_selection,
+  show_doctor_confirmed,
 )
 from src.device_config.camera_config import find_camera, capture_photo, CAMERA_FOCUS
 from src.stages.metadata.load_metadata import (
@@ -94,6 +100,27 @@ def main() -> None:
   base_dir.mkdir(exist_ok=True)
   logger.info("Diretorio base: %s", base_dir)
 
+  # ── Seleção do médico ──
+  doctor_index = 0
+  selected_doctor = None
+  show_doctor_selection(lcd, DOCTORS, doctor_index)
+  while selected_doctor is None:
+    if button_pressed(BUTTON_BOM):           # Anterior
+      doctor_index = (doctor_index - 1) % len(DOCTORS)
+      wait_to_release_button(BUTTON_BOM)
+      show_doctor_selection(lcd, DOCTORS, doctor_index)
+    elif button_pressed(BUTTON_PESSIMO):     # Próximo
+      doctor_index = (doctor_index + 1) % len(DOCTORS)
+      wait_to_release_button(BUTTON_PESSIMO)
+      show_doctor_selection(lcd, DOCTORS, doctor_index)
+    elif button_pressed(BUTTON_RUIM):        # Confirmar
+      selected_doctor = DOCTORS[doctor_index]
+      wait_to_release_button(BUTTON_RUIM)
+      show_doctor_confirmed(lcd, selected_doctor)
+      logger.info("Medico selecionado: %s", selected_doctor)
+      time.sleep(1.5)
+    time.sleep(POLL_INTERVAL)
+
   status = Status.IDLE
   show_idle_screen(lcd)
 
@@ -139,6 +166,7 @@ def main() -> None:
             filepath=filepath,
             tier=selected_tier,
           )
+          metadata["doctor"] = selected_doctor
           upload_to_gcp(filepath, metadata)
           send_to_api(metadata)
           save_local_metadata(metadata, base_dir)
