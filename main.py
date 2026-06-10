@@ -15,6 +15,9 @@ from src.shared.constants import (
   POLL_INTERVAL,
   MESSAGE_DISPLAY,
   DOCTORS,
+  MODE_MANUAL,
+  MODE_IA,
+  MODES,
 )
 from src.device_config.buttons_config import (
   init_gpio,
@@ -28,11 +31,16 @@ from src.device_config.lcd_config import (
   init_lcd,
   lcd_msg,
   show_idle_screen,
+  show_idle_screen_ia,
   show_tier_selected,
   show_capturing_animation,
+  show_classifying_animation,
+  show_ai_result,
   show_photo_ok,
   show_doctor_selection,
   show_doctor_confirmed,
+  show_mode_selection,
+  show_mode_confirmed,
 )
 from src.device_config.camera_config import find_camera, capture_photo, CAMERA_FOCUS
 from src.stages.metadata.load_metadata import (
@@ -41,6 +49,7 @@ from src.stages.metadata.load_metadata import (
 )
 from src.stages.gcp.load_to_storage import upload_to_gcp
 from src.stages.api.send_to_api import send_to_api
+from src.stages.ml.inference import classify_image, get_model_version, is_model_available
 
 logging.basicConfig(
   level=logging.INFO,
@@ -107,6 +116,37 @@ def _select_doctor(lcd) -> str:
   return selected
 
 
+def _select_mode(lcd) -> str:
+  """Loop de seleção do modo de operação no LCD. Retorna MODE_MANUAL ou MODE_IA."""
+  mode_index = 0
+  selected = None
+  show_mode_selection(lcd, MODES, mode_index)
+  while selected is None:
+    if button_pressed(BUTTON_BOM):
+      mode_index = (mode_index - 1) % len(MODES)
+      wait_to_release_button(BUTTON_BOM)
+      show_mode_selection(lcd, MODES, mode_index)
+    elif button_pressed(BUTTON_PESSIMO):
+      mode_index = (mode_index + 1) % len(MODES)
+      wait_to_release_button(BUTTON_PESSIMO)
+      show_mode_selection(lcd, MODES, mode_index)
+    elif button_pressed(BUTTON_RUIM):
+      selected = MODES[mode_index][0]
+      wait_to_release_button(BUTTON_RUIM)
+      show_mode_confirmed(lcd, MODES[mode_index][1])
+      logger.info("Modo selecionado: %s", selected)
+      time.sleep(1.5)
+    time.sleep(POLL_INTERVAL)
+  return selected
+
+
+def _show_idle(lcd, mode: str) -> None:
+  if mode == MODE_IA:
+    show_idle_screen_ia(lcd)
+  else:
+    show_idle_screen(lcd)
+
+
 def main() -> None:
   logger.info("Inicializando sistema...")
   init_gpio()
@@ -129,8 +169,17 @@ def main() -> None:
 
   # ── Seleção do médico ──
   selected_doctor = _select_doctor(lcd)
+
+  # ── Seleção do modo de operação ──
+  mode = _select_mode(lcd)
+  if mode == MODE_IA and not is_model_available():
+    logger.warning("Modo IA selecionado, mas model.tflite nao foi encontrado. Usando modo Manual.")
+    lcd_msg(lcd, "Modelo nao", "encontrado!")
+    time.sleep(2)
+    mode = MODE_MANUAL
+
   status = Status.IDLE
-  show_idle_screen(lcd)
+  _show_idle(lcd, mode)
 
   try:
     while True:
@@ -151,12 +200,14 @@ def main() -> None:
           if long_pressed:
             selected_doctor = _select_doctor(lcd)
             logger.info("Medico trocado: %s", selected_doctor)
-            show_idle_screen(lcd)
-          else:
+            _show_idle(lcd, mode)
+          elif mode == MODE_MANUAL:
             logger.info("Tier selecionado: bom")
             status = Status.CAPTURING
             selected_tier = "bom"
-        else:
+          # modo IA: toque curto em BTN1 não faz nada (sem seleção manual de tier)
+
+        elif mode == MODE_MANUAL:
           # Botões de tier (ruim e pessimo)
           for pin, tier in {BUTTON_RUIM: "ruim", BUTTON_PESSIMO: "pessimo"}.items():
             if button_pressed(pin):
@@ -166,48 +217,105 @@ def main() -> None:
               selected_tier = tier
               break
 
-      elif status == Status.CAPTURING:
-        show_tier_selected(lcd, TIER_DISPLAY[selected_tier])
+        else:
+          # Modo IA: BTN2 dispara a captura, a IA define o tier depois
+          if button_pressed(BUTTON_RUIM):
+            logger.info("Captura solicitada (modo IA)")
+            wait_to_release_button(BUTTON_RUIM)
+            status = Status.CAPTURING
+            selected_tier = None
 
+      elif status == Status.CAPTURING:
         if camera is None:
           lcd_msg(lcd, "Sem camera!", "Reconecte USB")
           time.sleep(MESSAGE_DISPLAY)
           status = Status.IDLE
-          show_idle_screen(lcd)
+          _show_idle(lcd, mode)
           continue
 
-        show_capturing_animation(lcd, TIER_DISPLAY[selected_tier])
-
-        # Diretório específico do tier (cria se não existir)
-        tier_dir = base_dir / TIER_FOLDER[selected_tier]
-        tier_dir.mkdir(exist_ok=True)
-
-        # Nome do arquivo: {tier}_{timestamp}_{id}.png
         photo_id = uuid.uuid4().hex[:12]
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{selected_tier}_{timestamp}_{photo_id}.png"
-        filepath = tier_dir / filename
 
-        if capture_photo(camera, filepath):
+        if mode == MODE_IA:
+          show_capturing_animation(lcd, "IA")
+          tmp_path = base_dir / f"_tmp_{photo_id}.png"
+
+          if not capture_photo(camera, tmp_path):
+            logger.error("Falha ao capturar foto.")
+            lcd_msg(lcd, "Erro captura!", "Tente de novo")
+            time.sleep(MESSAGE_DISPLAY)
+            status = Status.IDLE
+            _show_idle(lcd, mode)
+            continue
+
+          show_classifying_animation(lcd)
+          try:
+            predicted_tier, confidence = classify_image(tmp_path)
+          except Exception as exc:
+            logger.error("Falha na inferencia: %s", exc)
+            lcd_msg(lcd, "Erro na IA!", "Tente de novo")
+            time.sleep(MESSAGE_DISPLAY)
+            tmp_path.unlink(missing_ok=True)
+            status = Status.IDLE
+            _show_idle(lcd, mode)
+            continue
+
+          tier_dir = base_dir / TIER_FOLDER[predicted_tier]
+          tier_dir.mkdir(exist_ok=True)
+          filename = f"{predicted_tier}_{timestamp}_{photo_id}.png"
+          filepath = tier_dir / filename
+          tmp_path.rename(filepath)
           logger.info("Foto salva: %s", filepath)
+
+          show_ai_result(lcd, TIER_DISPLAY[predicted_tier], confidence)
+          time.sleep(MESSAGE_DISPLAY)
+
           metadata = build_metadata(
             photo_id=photo_id,
             filename=filename,
             filepath=filepath,
-            tier=selected_tier,
+            tier=predicted_tier,
+            mode=MODE_IA,
+            confidence=confidence,
+            model_version=get_model_version(),
           )
           metadata["doctor"] = selected_doctor
           upload_to_gcp(filepath, metadata)
           send_to_api(metadata)
           save_local_metadata(metadata, base_dir)
-          show_photo_ok(lcd, TIER_DISPLAY[selected_tier])
-        else:
-          logger.error("Falha ao capturar foto.")
-          lcd_msg(lcd, "Erro captura!", "Tente de novo")
+          show_photo_ok(lcd, TIER_DISPLAY[predicted_tier])
 
-        time.sleep(MESSAGE_DISPLAY)
+        else:
+          show_tier_selected(lcd, TIER_DISPLAY[selected_tier])
+          show_capturing_animation(lcd, TIER_DISPLAY[selected_tier])
+
+          tier_dir = base_dir / TIER_FOLDER[selected_tier]
+          tier_dir.mkdir(exist_ok=True)
+          filename = f"{selected_tier}_{timestamp}_{photo_id}.png"
+          filepath = tier_dir / filename
+
+          if capture_photo(camera, filepath):
+            logger.info("Foto salva: %s", filepath)
+            metadata = build_metadata(
+              photo_id=photo_id,
+              filename=filename,
+              filepath=filepath,
+              tier=selected_tier,
+              mode=MODE_MANUAL,
+            )
+            metadata["doctor"] = selected_doctor
+            upload_to_gcp(filepath, metadata)
+            send_to_api(metadata)
+            save_local_metadata(metadata, base_dir)
+            show_photo_ok(lcd, TIER_DISPLAY[selected_tier])
+          else:
+            logger.error("Falha ao capturar foto.")
+            lcd_msg(lcd, "Erro captura!", "Tente de novo")
+
+          time.sleep(MESSAGE_DISPLAY)
+
         status = Status.IDLE
-        show_idle_screen(lcd)
+        _show_idle(lcd, mode)
 
       time.sleep(POLL_INTERVAL)
 

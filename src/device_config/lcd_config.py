@@ -25,8 +25,13 @@ def lcd_msg(lcd: CharLCD, line1: str, line2: str = "") -> None:
 
 
 def show_idle_screen(lcd: CharLCD) -> None:
-  """Tela de instrução para o operador quando o sistema está pronto."""
+  """Tela de instrução para o operador quando o sistema está pronto (modo manual)."""
   lcd_msg(lcd, "Selecione tier:", "1=B 2=R 3=Pes")
+
+
+def show_idle_screen_ia(lcd: CharLCD) -> None:
+  """Tela de instrução para o operador quando o sistema está pronto (modo IA)."""
+  lcd_msg(lcd, "Modo IA Auto", "OK = Capturar")
 
 
 def show_tier_selected(lcd: CharLCD, tier_display: str) -> None:
@@ -70,3 +75,34 @@ def show_photo_ok(lcd: CharLCD, tier_display: str) -> None:
   lcd.write_string("** Foto OK! **")
   lcd.cursor_pos = (1, 0)
   lcd.write_string(f"Tier: {tier_display}"[:LCD_COLS])
+
+
+def show_mode_selection(lcd: CharLCD, modes: list, index: int) -> None:
+  """Exibe tela de seleção de modo de operação (Manual / IA Auto)."""
+  _, label = modes[index]
+  total = len(modes)
+  lcd.clear()
+  lcd.write_string(f"< {label:<11} >"[:LCD_COLS])
+  lcd.cursor_pos = (1, 0)
+  lcd.write_string(f"Ant OK Prox {index+1}/{total}"[:LCD_COLS])
+
+
+def show_mode_confirmed(lcd: CharLCD, mode_label: str) -> None:
+  """Confirmação após selecionar o modo de operação."""
+  lcd_msg(lcd, "Modo:", mode_label[:LCD_COLS])
+
+
+def show_classifying_animation(lcd: CharLCD) -> None:
+  """Anima três frames de pontos enquanto a IA classifica a foto."""
+  for dots in (".", "..", "..."):
+    lcd.clear()
+    lcd.write_string(f"Classificando{dots}"[:LCD_COLS])
+    time.sleep(0.3)
+
+
+def show_ai_result(lcd: CharLCD, tier_display: str, confidence: float) -> None:
+  """Exibe o resultado da classificação automática (tier + confiança)."""
+  lcd.clear()
+  lcd.write_string(f"IA: {tier_display}"[:LCD_COLS])
+  lcd.cursor_pos = (1, 0)
+  lcd.write_string(f"Confianca: {confidence * 100:.0f}%"[:LCD_COLS])

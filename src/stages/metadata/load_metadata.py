@@ -14,6 +14,9 @@ def build_metadata(
   filename: str,
   filepath: Path,
   tier: str,
+  mode: str = "manual",
+  confidence: float | None = None,
+  model_version: str | None = None,
 ) -> dict:
   """
   Estrutura de metadados de uma captura.
@@ -21,6 +24,11 @@ def build_metadata(
   Esta é a forma que será enviada à API FastAPI futuramente.
   Os campos relativos a GCP e API ficam reservados (None/False)
   até a integração ser feita.
+
+  Args:
+    mode: "manual" (operador escolheu o tier) ou "ia" (classificado pelo modelo).
+    confidence: confiança da IA (0-1), preenchido apenas quando mode == "ia".
+    model_version: versão do modelo de IA usado, quando mode == "ia".
   """
   now_utc = datetime.now(timezone.utc)
   return {
@@ -30,6 +38,9 @@ def build_metadata(
     "local_path": str(filepath),
     "tier": tier,
     "tier_folder": TIER_FOLDER[tier],
+    "mode": mode,
+    "confidence": confidence,
+    "model_version": model_version,
     "timestamp_utc": now_utc.isoformat(),
     "timestamp_local": datetime.now().isoformat(),
     # ── Campos reservados para integrações futuras ──

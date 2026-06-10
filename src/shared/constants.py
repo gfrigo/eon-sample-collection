@@ -30,8 +30,18 @@ TIER_FOLDER = {
   "pessimo": "amostras_pessimas",
 }
 
-# Lista de médicos disponíveis para seleção no início da sessão
-DOCTORS = [f"Medico {i:02d}" for i in range(1, 13)]  # Medico 01 a Medico 12
+# Lista de usuários disponíveis para seleção no início da sessão
+DOCTORS = [f"Usuario {i:02d}" for i in range(1, 13)]  # Usuario 01 a Usuario 12
+
+# ── Modos de operação ──
+MODE_MANUAL = "manual"   # Operador escolhe o tier pelos botões antes da captura
+MODE_IA = "ia"           # Captura e o modelo de IA classifica automaticamente
+
+# Ordem de exibição na tela de seleção de modo (valor interno, texto no LCD)
+MODES = [
+  (MODE_MANUAL, "Manual"),
+  (MODE_IA, "IA Auto"),
+]
 
 # Timings (em segundos)
 POLL_INTERVAL = 0.05      # Intervalo de leitura dos botões no loop principal

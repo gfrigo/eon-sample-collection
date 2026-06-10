@@ -12,3 +12,10 @@ RPLCD==1.3.1
 # Google Cloud Storage
 google-cloud-storage>=2.16
 google-auth>=2.29
+
+# Inferencia local do modelo (MobileNetV2 + TFLite, treinado em eon-aab-ml-train)
+# tflite-runtime e' um pacote leve (poucos MB), com wheels ARM via piwheels.
+# Caso nao exista wheel para a versao do Python/SO, instale "ai-edge-litert" no lugar.
+tflite-runtime; platform_machine == "aarch64" or platform_machine == "armv7l"
+Pillow>=10.0
+numpy>=1.24,<2
