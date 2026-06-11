@@ -18,9 +18,9 @@ TIER_MAP = {
 
 # Mapeamento: tier interno → texto exibido no LCD (curto, máximo 7 chars)
 TIER_DISPLAY = {
-  "bom": "BOM",
-  "ruim": "RUIM",
-  "pessimo": "PESSIMO",
+  "bom": "GRAU 1",
+  "ruim": "GRAU 2",
+  "pessimo": "GRAU 3",
 }
 
 # Mapeamento: tier interno → nome da pasta de armazenamento das fotos

@@ -7,13 +7,13 @@ Sistema de captura de amostras (Raspberry Pi 4 + webcam Logitech C920s + LCD 16x
 Ao iniciar (`python main.py`), depois de escolher o usuário, o LCD pede para
 escolher o modo:
 
-- **Manual** — fluxo original. O operador aperta um dos botões (Bom/Ruim/Péssimo)
+- **Manual** — fluxo original. O operador aperta um dos botões (Grau 1/Grau 2/Grau 3)
   *antes* de capturar a foto, classificando manualmente a amostra. Usado para
   coletar dados rotulados de treino.
 - **IA Auto** — o operador aperta apenas o botão central (OK) para capturar.
   A foto é classificada automaticamente pelo modelo `model.tflite` (treinado em
-  `eon-aab-ml-train`), e o tier (bom/ruim/pessimo) + confiança são enviados
-  junto com a amostra.
+  `eon-aab-ml-train`), e o grau (1/2/3) + confiança são enviados junto com a
+  amostra.
 
 Navegação na tela de seleção (usuário e modo): botão 1 = anterior, botão 2 = OK,
 botão 3 = próximo.
@@ -27,7 +27,7 @@ Com o sistema em espera (idle):
   (Manual / IA Auto).
 
 Toques curtos nesses botões continuam funcionando normalmente no modo Manual
-(botão 1 = tier Bom, botão 3 = tier Péssimo).
+(botão 1 = Grau 1, botão 3 = Grau 3).
 
 ## Modelo de IA (modo "IA Auto")
 

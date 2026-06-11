@@ -26,7 +26,7 @@ def lcd_msg(lcd: CharLCD, line1: str, line2: str = "") -> None:
 
 def show_idle_screen(lcd: CharLCD) -> None:
   """Tela de instrução para o operador quando o sistema está pronto (modo manual)."""
-  lcd_msg(lcd, "Selecione tier:", "1=B 2=R 3=Pes")
+  lcd_msg(lcd, "Selecione grau:", "1=G1 2=G2 3=G3")
 
 
 def show_idle_screen_ia(lcd: CharLCD) -> None:
