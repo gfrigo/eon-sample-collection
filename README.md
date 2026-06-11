@@ -18,6 +18,17 @@ escolher o modo:
 Navegação na tela de seleção (usuário e modo): botão 1 = anterior, botão 2 = OK,
 botão 3 = próximo.
 
+### Trocar usuário ou modo durante o uso
+
+Com o sistema em espera (idle):
+
+- Segurar o **botão 1** por 3s → volta à tela de seleção de **usuário**.
+- Segurar o **botão 3** por 3s → volta à tela de seleção de **modo**
+  (Manual / IA Auto).
+
+Toques curtos nesses botões continuam funcionando normalmente no modo Manual
+(botão 1 = tier Bom, botão 3 = tier Péssimo).
+
 ## Modelo de IA (modo "IA Auto")
 
 O modo IA Auto requer o arquivo `models/model.tflite` (gerado pelo pipeline de
@@ -34,6 +45,6 @@ existir, o sistema cai automaticamente para o modo Manual.
 
 ### Dependências de inferência
 
-A inferência usa `tflite-runtime` (poucos MB), não a biblioteca `tensorflow`
-completa. Caso não exista wheel pré-compilada para a versão do Python/SO do
-Raspberry Pi, troque por `ai-edge-litert` no `requirements.txt`.
+A inferência usa `ai-edge-litert` (poucos MB), não a biblioteca `tensorflow`
+completa. É o sucessor mantido do antigo `tflite-runtime` e suporta os ops
+gerados pelas versões atuais do TensorFlow.

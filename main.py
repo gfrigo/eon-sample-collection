@@ -155,6 +155,31 @@ def _show_idle(lcd, mode: str) -> None:
     show_idle_screen(lcd)
 
 
+def _is_long_press(pin, lcd, message: str) -> bool:
+  """Bloqueia enquanto o botão estiver pressionado; retorna True se foi long press."""
+  press_start = time.time()
+  while button_pressed(pin):
+    elapsed = time.time() - press_start
+    if elapsed >= 1.0:
+      lcd_msg(lcd, "Segure...", f"{message} {max(0, int(LONG_PRESS_SECONDS - elapsed))}s")
+    if elapsed >= LONG_PRESS_SECONDS:
+      wait_to_release_button(pin)
+      return True
+    time.sleep(0.05)
+  return False
+
+
+def _select_mode_safe(lcd) -> str:
+  """Seleciona o modo no LCD; volta para Manual se IA Auto for escolhido sem modelo disponível."""
+  mode = _select_mode(lcd)
+  if mode == MODE_IA and not is_model_available():
+    logger.warning("Modo IA selecionado, mas model.tflite nao foi encontrado. Usando modo Manual.")
+    lcd_msg(lcd, "Modelo nao", "encontrado!")
+    time.sleep(2)
+    mode = MODE_MANUAL
+  return mode
+
+
 def main() -> None:
   logger.info("Inicializando sistema...")
   init_gpio()
@@ -179,12 +204,7 @@ def main() -> None:
   selected_doctor = _select_doctor(lcd)
 
   # ── Seleção do modo de operação ──
-  mode = _select_mode(lcd)
-  if mode == MODE_IA and not is_model_available():
-    logger.warning("Modo IA selecionado, mas model.tflite nao foi encontrado. Usando modo Manual.")
-    lcd_msg(lcd, "Modelo nao", "encontrado!")
-    time.sleep(2)
-    mode = MODE_MANUAL
+  mode = _select_mode_safe(lcd)
 
   status = Status.IDLE
   _show_idle(lcd, mode)
@@ -192,22 +212,11 @@ def main() -> None:
   try:
     while True:
       if status == Status.IDLE:
-        # Long press em BTN1 → troca de médico
+        # Long press em BTN1 → troca de usuário
         if button_pressed(BUTTON_BOM):
-          press_start = time.time()
-          long_pressed = False
-          while button_pressed(BUTTON_BOM):
-            elapsed = time.time() - press_start
-            if elapsed >= 1.0:
-              lcd_msg(lcd, "Segure...", f"Trocando em {max(0, int(LONG_PRESS_SECONDS - elapsed))}s")
-            if elapsed >= LONG_PRESS_SECONDS:
-              long_pressed = True
-              wait_to_release_button(BUTTON_BOM)
-              break
-            time.sleep(0.05)
-          if long_pressed:
+          if _is_long_press(BUTTON_BOM, lcd, "Trocando em"):
             selected_doctor = _select_doctor(lcd)
-            logger.info("Medico trocado: %s", selected_doctor)
+            logger.info("Usuario trocado: %s", selected_doctor)
             _show_idle(lcd, mode)
           elif mode == MODE_MANUAL:
             logger.info("Tier selecionado: bom")
@@ -215,15 +224,25 @@ def main() -> None:
             selected_tier = "bom"
           # modo IA: toque curto em BTN1 não faz nada (sem seleção manual de tier)
 
+        # Long press em BTN3 → troca de modo (Manual / IA Auto)
+        elif button_pressed(BUTTON_PESSIMO):
+          if _is_long_press(BUTTON_PESSIMO, lcd, "Modo em"):
+            mode = _select_mode_safe(lcd)
+            logger.info("Modo trocado: %s", mode)
+            _show_idle(lcd, mode)
+          elif mode == MODE_MANUAL:
+            logger.info("Tier selecionado: pessimo")
+            status = Status.CAPTURING
+            selected_tier = "pessimo"
+          # modo IA: toque curto em BTN3 não faz nada (sem seleção manual de tier)
+
         elif mode == MODE_MANUAL:
-          # Botões de tier (ruim e pessimo)
-          for pin, tier in {BUTTON_RUIM: "ruim", BUTTON_PESSIMO: "pessimo"}.items():
-            if button_pressed(pin):
-              logger.info("Tier selecionado: %s", tier)
-              wait_to_release_button(pin)
-              status = Status.CAPTURING
-              selected_tier = tier
-              break
+          # Botão de tier "ruim"
+          if button_pressed(BUTTON_RUIM):
+            logger.info("Tier selecionado: ruim")
+            wait_to_release_button(BUTTON_RUIM)
+            status = Status.CAPTURING
+            selected_tier = "ruim"
 
         else:
           # Modo IA: BTN2 dispara a captura, a IA define o tier depois
