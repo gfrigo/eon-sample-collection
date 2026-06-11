@@ -209,10 +209,6 @@ tempCodeRunnerFile.py
 # GCP credentials
 service_account.json
 
-# Modelo de IA (baixado via scripts/download_model.py)
-models/*.tflite
-models/model.version
-
 # PyPI configuration file
 .pypirc
 
