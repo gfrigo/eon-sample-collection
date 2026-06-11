@@ -58,6 +58,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _run_quiet(cmd, env=None) -> None:
+  """Executa um comando ignorando falhas/timeouts (ex: systemctl --user sem sessao ativa)."""
+  try:
+    subprocess.run(cmd, timeout=5, env=env, capture_output=True)
+  except Exception as exc:
+    logger.debug("Comando %s falhou: %s", cmd, exc)
+
+
 def _apply_camera_focus(device) -> None:
   import os
   dev_path = f"/dev/video{device}"
@@ -66,9 +74,9 @@ def _apply_camera_focus(device) -> None:
   env["XDG_RUNTIME_DIR"] = f"/run/user/{uid}"
   env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path=/run/user/{uid}/bus"
   try:
-    subprocess.run(["systemctl", "--user", "stop", "wireplumber"], timeout=5, env=env)
-    subprocess.run(["systemctl", "--user", "stop", "pipewire.socket"], timeout=5, env=env)
-    subprocess.run(["systemctl", "--user", "stop", "pipewire"], timeout=5, env=env)
+    _run_quiet(["systemctl", "--user", "stop", "wireplumber"], env=env)
+    _run_quiet(["systemctl", "--user", "stop", "pipewire.socket"], env=env)
+    _run_quiet(["systemctl", "--user", "stop", "pipewire"], env=env)
     time.sleep(2)
     result = subprocess.run(
       ["v4l2-ctl", "-d", dev_path,
@@ -83,9 +91,9 @@ def _apply_camera_focus(device) -> None:
   except Exception as exc:
     logger.warning("Erro ao aplicar foco: %s", exc)
   finally:
-    subprocess.run(["systemctl", "--user", "start", "pipewire.socket"], timeout=5, env=env)
-    subprocess.run(["systemctl", "--user", "start", "pipewire"], timeout=5, env=env)
-    subprocess.run(["systemctl", "--user", "start", "wireplumber"], timeout=5, env=env)
+    _run_quiet(["systemctl", "--user", "start", "pipewire.socket"], env=env)
+    _run_quiet(["systemctl", "--user", "start", "pipewire"], env=env)
+    _run_quiet(["systemctl", "--user", "start", "wireplumber"], env=env)
     time.sleep(1)
 
 

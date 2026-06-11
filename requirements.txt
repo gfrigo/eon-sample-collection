@@ -17,8 +17,9 @@ google-cloud-storage>=2.16
 google-auth>=2.29
 
 # Inferencia local do modelo (MobileNetV2 + TFLite, treinado em eon-aab-ml-train)
-# tflite-runtime e' um pacote leve (poucos MB), com wheels ARM via piwheels.
-# Caso nao exista wheel para a versao do Python/SO, instale "ai-edge-litert" no lugar.
-tflite-runtime; platform_machine == "aarch64" or platform_machine == "armv7l"
+# ai-edge-litert e' o sucessor mantido do tflite-runtime (descontinuado em 2021)
+# e suporta os ops mais novos gerados pelas versoes atuais do TensorFlow.
+# Tem wheel aarch64 (Raspberry Pi OS 64-bit) direto no PyPI.
+ai-edge-litert; platform_machine == "aarch64" or platform_machine == "armv7l"
 Pillow>=10.0
 numpy>=1.24,<2

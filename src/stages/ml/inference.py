@@ -1,6 +1,6 @@
 """Inferência leve (TFLite) para classificar a qualidade da amostra pela foto.
 
-Usa tflite-runtime (ou ai-edge-litert / tensorflow.lite como fallback) para
+Usa ai-edge-litert (ou tflite-runtime / tensorflow.lite como fallback) para
 manter o consumo de memória baixo no Raspberry Pi. O modelo é carregado uma
 única vez e reutilizado entre capturas.
 """
@@ -56,15 +56,15 @@ def _load_interpreter():
     )
 
   try:
-    from tflite_runtime.interpreter import Interpreter  # type: ignore
+    from ai_edge_litert.interpreter import Interpreter  # type: ignore
   except ImportError:
     try:
-      from ai_edge_litert.interpreter import Interpreter  # type: ignore
+      from tflite_runtime.interpreter import Interpreter  # type: ignore
     except ImportError:
       from tensorflow.lite.python.interpreter import Interpreter  # type: ignore
       logger.warning(
-        "tflite-runtime/ai-edge-litert não encontrados — usando tensorflow.lite "
-        "(pacote pesado). Instale tflite-runtime para um runtime mais leve."
+        "ai-edge-litert/tflite-runtime não encontrados — usando tensorflow.lite "
+        "(pacote pesado). Instale ai-edge-litert para um runtime mais leve."
       )
 
   interpreter = Interpreter(model_path=str(MODEL_PATH))
